@@ -1,4 +1,5 @@
-# TurboQuant
+# Quark
+Python package name: `turboquant`.
 
 A modern decoder-only LLM built from scratch in PyTorch.
 Implements LLaMA-3-style architecture with Grouped Query Attention, RoPE, SwiGLU,
