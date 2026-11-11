@@ -1,31 +1,27 @@
-# Quark
-Python package name: `turboquant`.
+<img src="assets/header.svg" width="100%" alt="Quark" />
 
-A modern decoder-only LLM built from scratch in PyTorch.
-Implements LLaMA-3-style architecture with Grouped Query Attention, RoPE, SwiGLU,
-Apple Exclusive Self Attention (XSA), and Google TurboQuant KV-cache compression.
+<p align="center">
+  <b>A decoder-only language model built from scratch in PyTorch, with KV-cache compression.</b><br>
+  <sub>56 tests passing · PyTorch, uv · LLaMA-3-style architecture · Spring 2026</sub>
+</p>
 
+### at a glance
+
+```yaml
+what:    decoder-only LLM from scratch (Python package name: turboquant)
+result:  56 tests passing; TurboQuant KV cache uses ~3.4x less memory than FP32 at 3 bits
+stack:   [PyTorch >= 2.5, Python 3.12, uv]
+parts:   [grouped-query attention, RoPE, SwiGLU, TurboQuant KV cache, INT8/INT4, XSA (opt-in)]
+built:   Spring 2026 · solo side project
+status:  no trained model released; the pipeline is tested end to end on toy data
 ```
-56 tests passing  •  Python 3.12  •  PyTorch ≥ 2.5  •  uv
-```
 
----
+LLaMA-3-style architecture with Grouped Query Attention, RoPE, SwiGLU, Apple
+Exclusive Self Attention (XSA, opt-in) and Google TurboQuant KV-cache compression.
 
-## Table of Contents
+`PyTorch` `Python 3.12` `uv` `safetensors`
 
-- [Installation](#installation)
-- [Quick checks](#quick-checks)
-- [Tokenizer](#tokenizer)
-- [Training](#training)
-- [Generation](#generation)
-- [Quantization](#quantization)
-- [Benchmarking](#benchmarking)
-- [Model presets](#model-presets)
-- [Key flags](#key-flags)
-
----
-
-## Installation
+### install
 
 ```bash
 # 1. Clone / enter the repo
@@ -44,19 +40,19 @@ Verify the install:
 uv run turboquant --help
 ```
 
----
-
-## Quick checks
+### quick checks
 
 ```bash
-# Run the full test suite (56 tests, ~4 s)
+# Run the full test suite (56 tests, ~4 s); pytest is in the dev extra
+uv sync --extra dev
 uv run pytest
 
 # Print parameter counts for all presets
 uv run python scripts/count_params.py
 ```
 
-Expected output from `count_params.py`:
+<details>
+<summary>Expected output from <code>count_params.py</code></summary>
 
 ```
 Preset            Config ~Params    Actual Params    Size MB
@@ -67,9 +63,9 @@ turbo-medium           349.6M           349.6M      1333.8M
 turbo-large           1006.5M          1006.5M      3840.0M
 ```
 
----
+</details>
 
-## Tokenizer
+### tokenizer
 
 Train a byte-level BPE tokenizer on your text files before training.
 
@@ -83,20 +79,18 @@ uv run turboquant tokenizer train \
 The tokenizer is saved as `tokenizer.json` inside the output directory and loaded
 automatically by the training and generation commands.
 
----
+### training
 
-## Training
-
-### Minimal example (CPU, tiny model)
+Minimal example (CPU, tiny model):
 
 ```bash
 uv run python examples/train_tiny.py
 ```
 
-This trains a 2-layer, 128-dim model on toy phrases for 500 steps — useful to
+This trains a 2-layer, 128-dim model on toy phrases for 500 steps. Useful to
 verify the full pipeline works before committing to a real run.
 
-### Full training via CLI
+Full training via CLI:
 
 ```bash
 uv run turboquant train run \
@@ -111,7 +105,8 @@ uv run turboquant train run \
   --device auto
 ```
 
-**Training flags**:
+<details>
+<summary>Training flags</summary>
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -130,6 +125,7 @@ uv run turboquant train run \
 | `--device` | `auto` | `auto` / `cpu` / `cuda` / `mps` |
 
 Checkpoints are saved as:
+
 ```
 checkpoints/small-run/
   step_0001000/
@@ -139,9 +135,9 @@ checkpoints/small-run/
     ...
 ```
 
----
+</details>
 
-## Generation
+### generation
 
 ```bash
 uv run turboquant generate run \
@@ -150,7 +146,8 @@ uv run turboquant generate run \
   "Once upon a time"
 ```
 
-**Generation flags**:
+<details>
+<summary>Generation flags</summary>
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -164,19 +161,19 @@ uv run turboquant generate run \
 | `--stream` / `--no-stream` | stream on | Print tokens as they are generated |
 | `--device` | `auto` | Device |
 
----
+</details>
 
-## Quantization
+### quantization
 
-### Run the comparison example
+Run the comparison example:
 
 ```bash
 uv run python examples/quantize_and_compare.py
 ```
 
-Prints size and cosine similarity vs FP32 for INT8 and INT4 on `turbo-tiny`.
+It prints size and cosine similarity vs FP32 for INT8 and INT4 on `turbo-tiny`.
 
-### Quantize a checkpoint via CLI
+Quantize a checkpoint via CLI:
 
 ```bash
 # INT8 (per-channel symmetric, ~4x size reduction)
@@ -196,10 +193,8 @@ uv run turboquant quantize run \
 The quantized checkpoint is a standard safetensors directory and can be passed
 directly to `turboquant generate run`.
 
-### TurboQuant compressed KV cache
-
-The compressed KV cache is enabled at **inference time** — no re-quantization of
-the checkpoint is needed. Use it programmatically:
+**TurboQuant compressed KV cache.** It is enabled at **inference time**, with no
+re-quantization of the checkpoint. Use it programmatically:
 
 ```python
 from turboquant.inference.kv_cache import build_compressed_kv_caches
@@ -209,25 +204,14 @@ caches = build_compressed_kv_caches(model.config, batch_size=1,
 logits, caches = model(input_ids, kv_caches=caches, cache_pos=0)
 ```
 
-`bits` controls the effective precision per KV coordinate (2–4).
-At `bits=3` the cache uses ~3.4× less memory than FP32.
+`bits` controls the effective precision per KV coordinate (2–4). At `bits=3` the
+cache uses ~**3.4x** less memory than FP32.
 
----
+### benchmarking
 
-## Benchmarking
-
-`scripts/benchmark.py` measures prefill throughput, per-token decode latency,
-and peak VRAM across five variants:
-
-| Variant | Description |
-|---------|-------------|
-| `FP32` | Baseline float32 weights, plain KV cache |
-| `INT8` | INT8 weight quantization, plain KV cache |
-| `INT4` | INT4 weight quantization, plain KV cache |
-| `FP32 + TQ-KV (3-bit)` | FP32 weights + TurboQuant compressed KV cache |
-| `FP32 + XSA` | FP32 weights + Exclusive Self Attention |
-
-### Run
+`scripts/benchmark.py` measures prefill throughput, per-token decode latency, and
+peak VRAM across five variants: `FP32`, `INT8`, `INT4`, `FP32 + TQ-KV (3-bit)`
+and `FP32 + XSA`.
 
 ```bash
 # Default: turbo-tiny and turbo-small on auto-detected device
@@ -246,7 +230,22 @@ uv run python scripts/benchmark.py \
   --runs 5
 ```
 
-### All flags
+> **Note**: TurboQuant KV-cache compression trades decode speed for memory.
+> The benefit shows on CUDA where KV tensors become the memory bottleneck
+> at long sequence lengths / large batch sizes. The decode latency cost
+> disappears once quantization/dequantization is fused into a CUDA kernel.
+> On CPU, the unoptimized Python loop dominates.
+
+<details>
+<summary>Variants, flags, example output and how to read it</summary>
+
+| Variant | Description |
+|---------|-------------|
+| `FP32` | Baseline float32 weights, plain KV cache |
+| `INT8` | INT8 weight quantization, plain KV cache |
+| `INT4` | INT4 weight quantization, plain KV cache |
+| `FP32 + TQ-KV (3-bit)` | FP32 weights + TurboQuant compressed KV cache |
+| `FP32 + XSA` | FP32 weights + Exclusive Self Attention |
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -257,7 +256,7 @@ uv run python scripts/benchmark.py \
 | `--batch-size` | `1` | Batch size |
 | `--runs` | `3` | Timed repetitions per variant (higher = lower variance) |
 
-### Example output (turbo-tiny, CPU)
+Example output (turbo-tiny, CPU):
 
 ```
 ========================================================================
@@ -280,14 +279,6 @@ FP32 + XSA                 60.3             4650             3.18             31
   FP32 + XSA                 size  1.0x smaller  decode 1.01x faster
 ```
 
-> **Note**: TurboQuant KV-cache compression trades decode speed for memory.
-> The benefit shows on CUDA where KV tensors become the memory bottleneck
-> at long sequence lengths / large batch sizes — the decode latency cost
-> disappears once quantization/dequantization is fused into a CUDA kernel.
-> On CPU, the unoptimized Python loop dominates.
-
-### What to look for
-
 | Metric | What it tells you |
 |--------|-------------------|
 | **Prefill tok/s** | How fast the model processes the input prompt. Compute-bound. |
@@ -296,9 +287,9 @@ FP32 + XSA                 60.3             4650             3.18             31
 | **Peak VRAM MB** | GPU memory high-water mark (CUDA only). |
 | **Size MB** | Model weight footprint. |
 
----
+</details>
 
-## Model presets
+### model presets
 
 | Preset | `dim` | `layers` | `q_heads` | `kv_heads` | `max_seq` | ~Params |
 |--------|-------|----------|-----------|-----------|---------|---------|
@@ -320,13 +311,13 @@ max_seq_len: 1024
 use_xsa: true
 ```
 
----
+### key flags
 
-## Key flags
+<details>
+<summary>XSA, KV-cache bits, BF16</summary>
 
-### Enable XSA (Exclusive Self Attention)
-
-Set `use_xsa: true` in your YAML config, or pass it programmatically:
+Enable XSA (Exclusive Self Attention): set `use_xsa: true` in your YAML config, or
+pass it programmatically:
 
 ```python
 config = ModelConfig.from_preset("turbo-small")
@@ -334,18 +325,22 @@ config.use_xsa = True
 model = Transformer(config)
 ```
 
-### Compressed KV cache bits
+Compressed KV cache bits:
 
 ```python
 # 2-bit: maximum compression (~6x vs FP32), lower quality
-# 3-bit: balanced (~3.4x vs FP32)   ← recommended
+# 3-bit: balanced (~3.4x vs FP32)   <- recommended
 # 4-bit: near-lossless (~2x vs FP32)
 caches = build_compressed_kv_caches(config, batch_size=1, device=device, bits=3)
 ```
 
-### BF16 inference
+BF16 inference:
 
 ```python
 model = model.to(torch.bfloat16)
-# Pass bfloat16 input_ids or cast embeddings — the model handles mixed dtypes internally.
+# Pass bfloat16 input_ids or cast embeddings. The model handles mixed dtypes internally.
 ```
+
+</details>
+
+<img src="assets/footer.svg" width="100%" alt="" />
