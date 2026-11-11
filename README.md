@@ -57,10 +57,10 @@ uv run python scripts/count_params.py
 ```
 Preset            Config ~Params    Actual Params    Size MB
 --------------------------------------------------------------
-turbo-tiny              15.8M            15.8M        60.3M
-turbo-small            124.4M           124.4M       474.4M
-turbo-medium           349.6M           349.6M      1333.8M
-turbo-large           1006.5M          1006.5M      3840.0M
+turbo-tiny              24.4M            24.4M        93.1M
+turbo-small            124.7M           124.7M       475.6M
+turbo-medium           336.1M           336.1M      1282.2M
+turbo-large           1213.3M          1213.3M      4628.4M
 ```
 
 </details>
@@ -171,18 +171,20 @@ Run the comparison example:
 uv run python examples/quantize_and_compare.py
 ```
 
-It prints size and cosine similarity vs FP32 for INT8 and INT4 on `turbo-tiny`.
+It prints size and cosine similarity vs FP32 for INT8 and INT4 on `turbo-tiny`. With the current code
+the saving is much smaller than the bit-widths suggest: **76.2 MB** (INT8) and **88.9 MB** (INT4) vs
+93.2 MB in FP32, at cosine similarity 0.9999 and 0.9983.
 
 Quantize a checkpoint via CLI:
 
 ```bash
-# INT8 (per-channel symmetric, ~4x size reduction)
+# INT8 (per-channel symmetric)
 uv run turboquant quantize run \
   --checkpoint checkpoints/small-run/step_0100000 \
   --output checkpoints/small-run-int8 \
   --method int8
 
-# INT4 (group-wise asymmetric, ~8x size reduction)
+# INT4 (group-wise asymmetric)
 uv run turboquant quantize run \
   --checkpoint checkpoints/small-run/step_0100000 \
   --output checkpoints/small-run-int4 \
@@ -256,27 +258,27 @@ uv run python scripts/benchmark.py \
 | `--batch-size` | `1` | Batch size |
 | `--runs` | `3` | Timed repetitions per variant (higher = lower variance) |
 
-Example output (turbo-tiny, CPU):
+Example output (turbo-tiny, CPU, Apple M2):
 
 ```
 ========================================================================
   Preset: turbo-tiny  |  Device: cpu  |  B=1  prompt=128  decode=64 steps
 ========================================================================
-  dim=288  layers=6  heads=6/6  max_seq=512  ~15M params
+  dim=288  layers=6  heads=6/6  max_seq=512  ~24M params
 
-Variant                  Size MB    Prefill tok/s    Decode ms/tok    Decode tok/s  Peak VRAM MB
-------------------------------------------------------------------------------------------------
-FP32                       60.3             4821             3.21             311           0.0
-INT8                       15.1             3940             2.87             348           0.0
-INT4                        7.6             3210             2.65             377           0.0
-FP32 + TQ-KV (3-bit)       60.3             4821            12.40              81           0.0
-FP32 + XSA                 60.3             4650             3.18             314           0.0
+Variant                     Size MB    Prefill tok/s    Decode ms/tok     Decode tok/s   Peak VRAM MB
+-----------------------------------------------------------------------------------------------------
+FP32                           93.2            13966             2.76              362            0.0
+INT8                           76.2            11880             4.72              212            0.0
+INT4                           88.9            11531             4.24              236            0.0
+FP32 + TQ-KV (3-bit)           93.2            14075             7.37              136            0.0
+FP32 + XSA                     93.2            13445             2.66              376            0.0
 
   Ratios vs FP32 baseline:
-  INT8                       size  4.0x smaller  decode 1.12x faster
-  INT4                       size  7.9x smaller  decode 1.21x faster
-  FP32 + TQ-KV (3-bit)       size  1.0x smaller  decode 0.26x faster
-  FP32 + XSA                 size  1.0x smaller  decode 1.01x faster
+  INT8                         size  1.2x smaller  decode 0.58x faster
+  INT4                         size  1.0x smaller  decode 0.65x faster
+  FP32 + TQ-KV (3-bit)         size  1.0x smaller  decode 0.38x faster
+  FP32 + XSA                   size  1.0x smaller  decode 1.04x faster
 ```
 
 | Metric | What it tells you |
@@ -293,10 +295,10 @@ FP32 + XSA                 60.3             4650             3.18             31
 
 | Preset | `dim` | `layers` | `q_heads` | `kv_heads` | `max_seq` | ~Params |
 |--------|-------|----------|-----------|-----------|---------|---------|
-| `turbo-tiny` | 288 | 6 | 6 | 6 | 512 | ~15M |
+| `turbo-tiny` | 288 | 6 | 6 | 6 | 512 | ~24M |
 | `turbo-small` | 768 | 12 | 12 | 4 | 1 024 | ~125M |
-| `turbo-medium` | 1 024 | 24 | 16 | 4 | 2 048 | ~350M |
-| `turbo-large` | 2 048 | 24 | 32 | 8 | 2 048 | ~1B |
+| `turbo-medium` | 1 024 | 24 | 16 | 4 | 2 048 | ~336M |
+| `turbo-large` | 2 048 | 24 | 32 | 8 | 2 048 | ~1.2B |
 
 Custom configs can be written as YAML and passed via `--config path/to/config.yaml`.
 
